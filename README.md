@@ -37,7 +37,7 @@ results are dependent on the distribution of source colours.
 RGB LUTs
 --------
 
-The LUTs are in 32x32x32 RGB cube format, represented as 32x1024 2D images, as
+The LUTs are in 17x17x17 RGB cube format, represented as 17x289 2D images, as
 this is generally a good compromise between fidelity and size. (This can be
 changed by modifying kLUTBits in the source.) If you're only interested in the
 LUTs, pregenerated versions can be found in the [luts](luts) directory.
@@ -104,7 +104,7 @@ Building
 
 To build and run the tool, use
 
-    c++ --std=c++11 CBLuts.cpp ColourMaps.cpp CBLutGen.cpp -o cblutgen
+    c++ --std=c++11 CBLuts.cpp ColourMaps.cpp GenCBLut.cpp -o cblutgen
 
 Or, include these files in your favourite IDE, build, and run.
 
@@ -112,3 +112,7 @@ To generate simulated and corrected versions of the supplied [test
 images](tests/README.md), along with markdown-style results files, run the supplied
 "generate" script. (Currently unix-style OSes only.) The results can be found in
 the 'out' directory.
+
+To get 17x17x17 3D LUT
+./cblutgen2 -f pink.jpg -d -m 0 -x
+
