@@ -3,13 +3,19 @@
 //
 //  Function:   Utilities for colour-blind modelling and LUT construction
 //
-//  Copyright:  Andrew Willmott 2018
 //
 
 #include "CBLuts.h"
 
 #include <math.h>
 #include <assert.h>
+
+#include <stdint.h>
+#include <stdio.h>
+#include <assert.h>
+#include <fstream>
+#include <iomanip>
+#include <ctime>
 
 using namespace CBLut;
 
@@ -366,8 +372,24 @@ void CBLut::CreateIdentityLUT(RGBA32 rgbLUT[kLUTSize][kLUTSize][kLUTSize])
 
 #define EXTRAPOLATE_LUT 1
 
+
 void CBLut::ApplyLUT(RGBA32 rgbLUT[kLUTSize][kLUTSize][kLUTSize], int n, const RGBA32 dataIn[], RGBA32 dataOut[])
 {
+
+    printf("LUT values: \n");
+    for (int i = 0; i < kLUTSize; ++i)
+    {
+        for (int j = 0; j < kLUTSize; ++j)
+        {
+            for (int k = 0; k < kLUTSize; ++k)
+            {
+                RGBA32 color = rgbLUT[i][j][k];  // Access LUT values.
+                printf("LUT[%d][%d][%d] = R:%u G:%u B:%u\n", 
+                    i, j, k, color.c[0], color.c[1], color.c[2]);  // Print each RGBA component
+            }
+        }
+    }
+/*
     constexpr int lutShift = kLUTBits;
     constexpr int lutSize  = 1 << lutShift;
     constexpr int fShift   = 8 - lutShift;
@@ -414,16 +436,67 @@ void CBLut::ApplyLUT(RGBA32 rgbLUT[kLUTSize][kLUTSize][kLUTSize], int n, const R
         int ch1 = (((8 - s[1]) * lutC0.c[1] + s[1] * lutC1.c[1])) >> 3;
         int ch2 = (((8 - s[2]) * lutC0.c[2] + s[2] * lutC1.c[2])) >> 3;
 
+*/
+    constexpr int lutSize  = kLUTSize;  // Now fixed to 17
+    constexpr int fShift   = 8;         // 8-bit input
+    constexpr int lutScale = 256 / (lutSize - 1); // Scale factor for the LUT mapping
+    constexpr int fHalf    = lutScale / 2;        // Half of the scale factor for rounding
+
+    for (int i = 0; i < n; i++)
+    {
+        const uint8_t* ci = dataIn[i].c;
+
+        // Compute the LUT indices and scale factors
+        int co[3] = { ci[0] + fHalf,   ci[1] + fHalf,   ci[2] + fHalf   };
+        int i1[3] = { co[0] / lutScale, co[1] / lutScale, co[2] / lutScale };
+        int i0[3] = { i1[0] - 1,        i1[1] - 1,        i1[2] - 1        };
+        int s [3] = { co[0] % lutScale, co[1] % lutScale, co[2] % lutScale };
+
+        // Adjust boundaries for i0 and i1
+        for (int j = 0; j < 3; j++)
+        {
+            if (i0[j] < 0)
+            {
+                i0[j]++;
+            #ifdef EXTRAPOLATE_LUT
+                i1[j]++;
+                s [j] -= lutScale;
+            #endif
+            }
+            else if (i1[j] >= lutSize)
+            {
+                i1[j]--;
+            #ifdef EXTRAPOLATE_LUT
+                i0[j]--;
+                s [j] += lutScale;
+            #endif
+            }
+
+            assert(0 <= i0[j] && i0[j] < kLUTSize);
+            assert(0 <= i1[j] && i1[j] < kLUTSize);
+        }
+        
+        // Fetch LUT values for interpolation
+        RGBA32 lutC0 = rgbLUT[i0[2]][i0[1]][i0[0]];
+        RGBA32 lutC1 = rgbLUT[i1[2]][i1[1]][i1[0]];
+
+        // Perform interpolation for each channel
+        int ch0 = (((lutScale - s[0]) * lutC0.c[0] + s[0] * lutC1.c[0])) / lutScale;
+        int ch1 = (((lutScale - s[1]) * lutC0.c[1] + s[1] * lutC1.c[1])) / lutScale;
+        int ch2 = (((lutScale - s[2]) * lutC0.c[2] + s[2] * lutC1.c[2])) / lutScale;
+
     #ifdef EXTRAPOLATE_LUT
         ch0 = ch0 < 0 ? 0 : ch0 > 255 ? 255 : ch0;
         ch1 = ch1 < 0 ? 0 : ch1 > 255 ? 255 : ch1;
         ch2 = ch2 < 0 ? 0 : ch2 > 255 ? 255 : ch2;
     #endif
 
+        // Ensure valid color channels
         assert(0 <= ch0 && ch0 <= 255);
         assert(0 <= ch1 && ch1 <= 255);
         assert(0 <= ch2 && ch2 <= 255);
 
+        // Set output color 
         dataOut[i].c[0] = ch0;
         dataOut[i].c[1] = ch1;
         dataOut[i].c[2] = ch2;
@@ -433,15 +506,23 @@ void CBLut::ApplyLUT(RGBA32 rgbLUT[kLUTSize][kLUTSize][kLUTSize], int n, const R
 
 void CBLut::ApplyLUTNoLerp(RGBA32 rgbLUT[kLUTSize][kLUTSize][kLUTSize], int n, const RGBA32 dataIn[], RGBA32 dataOut[])
 {
-    constexpr int fShift = 8 - kLUTBits;
+    constexpr int lutSize  = kLUTSize;  // Now fixed to 17
+    constexpr int lutScale = 256 / (lutSize - 1); // Scale factor for LUT lookup
 
     for (int i = 0; i < n; i++)
     {
         const uint8_t* ci = dataIn[i].c;
 
-        dataOut[i] = rgbLUT[ci[2] >> fShift][ci[1] >> fShift][ci[0] >> fShift];
+        // Direct LUT lookup without interpolation
+        dataOut[i] = rgbLUT[ci[2] / lutScale][ci[1] / lutScale][ci[0] / lutScale];
     }
 }
+
+
+
+
+
+
 
 // --- Mono LUT support --------------------------------------------------------
 

@@ -3,7 +3,6 @@
 //
 //  Function:   Utilities for colour-blind modelling and LUT construction
 //
-//  Copyright:  Andrew Willmott 2018
 //
 
 #ifndef CB_LUTS_H
@@ -55,7 +54,8 @@ namespace CBLut
 
     // RGB LUT support
     constexpr int kLUTBits = 5; // 32 x 32 x 32, compromise between accuracy and memory.
-    constexpr int kLUTSize = 1 << kLUTBits;
+    //constexpr int kLUTSize = 1 << kLUTBits;
+    constexpr int kLUTSize = 17;
 
     void CreateIdentityLUT(RGBA32 rgbLUT[kLUTSize][kLUTSize][kLUTSize]);    // Create identity
     void ApplyLUT      (RGBA32 rgbLUT[kLUTSize][kLUTSize][kLUTSize], int n, const RGBA32 dataIn[], RGBA32 dataOut[]); ///< Apply lut to the given image 
