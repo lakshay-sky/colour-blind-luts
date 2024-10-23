@@ -114,5 +114,6 @@ images](tests/README.md), along with markdown-style results files, run the suppl
 the 'out' directory.
 
 To get 17x17x17 3D LUT
-./cblutgen2 -f pink.jpg -d -m 0 -x
+
+    ./cblutgen2 -f pink.jpg -d -m 0 -x
 
