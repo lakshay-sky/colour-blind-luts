@@ -115,5 +115,5 @@ the 'out' directory.
 
 To get 17x17x17 3D LUT
 
-    ./cblutgen2 -f pink.jpg -d -m 0 -x
+    ./cblutgen2 -f pink.jpg -d -m 0.8 -x
 
