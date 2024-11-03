@@ -17,6 +17,15 @@
 #include <fstream>
 #include <iomanip>
 #include <ctime>
+#include <cstdint>
+#include <cmath>
+#include <iostream>
+#include <string>
+#include <vector>
+#include <sstream>
+
+
+
 
 #ifdef _MSC_VER
     #define strlcpy(d, s, ds) strcpy_s(d, ds, s)
@@ -24,9 +33,177 @@
 
 using namespace CBLut;
 
+// Function to convert float values to a range of 0 to 4095
+int float_to_int4095(float value) {
+    return static_cast<int>(std::round(value * 4095.0f));
+}
+
+/*
+void SaveLUTToCSV(const float outputArray[kLUTSize * kLUTSize * kLUTSize][6], const char* filename) {
+    std::ofstream outfile(filename);
+    if (!outfile) {
+        std::cerr << "Error creating CSV file: " << filename << std::endl;
+        return;
+    }
+
+    // Write CSV header
+    outfile << "R_Index,G_Index,B_Index,Normalized_R,Normalized_G,Normalized_B\n";
+
+    // Write each row of outputArray to the CSV file
+    for (int i = 0; i < kLUTSize * kLUTSize * kLUTSize; ++i) {
+        outfile << std::fixed << std::setprecision(6)
+                << outputArray[i][0] << ","  // R_Index
+                << outputArray[i][1] << ","  // G_Index
+                << outputArray[i][2] << ","  // B_Index
+                << outputArray[i][3] << ","  // Normalized_R
+                << outputArray[i][4] << ","  // Normalized_G
+                << outputArray[i][5] << "\n"; // Normalized_B
+    }
+
+    outfile.close();
+    std::cout << "LUT data saved to CSV file: " << filename << std::endl;
+}
+
+*/
+// Function to save the LUT data into a 2D array
+void SaveLUTTo2DArray(const RGBA32 rgbLUT[kLUTSize][kLUTSize][kLUTSize], float outputArray[kLUTSize * kLUTSize * kLUTSize][6]) {
+    // Create index for output array
+    int index = 0;
+    printf("save2array");
+    // Populate the output array with normalized LUT values
+    for (int r = 0; r < kLUTSize; ++r) {
+        for (int g = 0; g < kLUTSize; ++g) {
+            for (int b = 0; b < kLUTSize; ++b) {
+                RGBA32 color = rgbLUT[r][g][b];
+
+                // Normalize the RGB values to [0.0, 1.0]
+                float normalizedR = color.c[0] / 255.0f;
+                float normalizedG = color.c[1] / 255.0f;
+                float normalizedB = color.c[2] / 255.0f;
+
+                // Populate the 2D output array
+                outputArray[index][0] = static_cast<float>(r);
+                outputArray[index][1] = static_cast<float>(g);
+                outputArray[index][2] = static_cast<float>(b);
+                outputArray[index][3] = normalizedR;
+                outputArray[index][4] = normalizedG;
+                outputArray[index][5] = normalizedB;
+
+                // Move to the next index
+                index++;
+            }
+        }
+    }
+ //   SaveLUTToCSV(outputArray, "output_lut.csv");
+    printf("%d",index);
+    printf(" save2array OVER ");
+
+    // Optional: Print out the resulting array for verification
+ /*  for (int i = 0; i < kLUTSize * kLUTSize; ++i) {
+        std::cout << std::fixed << std::setprecision(6)
+                  << outputArray[i][0] << "," << outputArray[i][1] << "," << outputArray[i][2] << ","
+                  << outputArray[i][3] << "," << outputArray[i][4] << "," << outputArray[i][5] << "\n";
+    }
+*/
+}
+
+// Function to save the LUT as a binary file
+// Function to save the LUT as a binary file with a counter and incomplete data handling
+void SaveLUTAsBIN(const RGBA32 rgbLUT[kLUTSize][kLUTSize][kLUTSize], const char* filename) {
+    printf(" Enter SaveLUTAsBIN ");
+    float outputArray[kLUTSize * kLUTSize * kLUTSize][6];
+    SaveLUTTo2DArray(rgbLUT, outputArray);
+    printf(" again Enter SaveLUTAsBIN ");
+    
+    std::ofstream outfile(filename, std::ios::binary | std::ios::trunc);
+    if (!outfile) {
+        std::cerr << "Error creating output file" << std::endl;
+        return;
+    }
+
+    int counter = 0;
+    float data0_f, data1_f, data2_f, data3_f, data4_f, data5_f;
+
+    for (int i = 0; i < kLUTSize * kLUTSize * kLUTSize; ++i) {
+        if (counter == 0) {
+            // First entry in the pair
+            data0_f = outputArray[i][3] * 4095.0f; // Normalized R
+            data1_f = outputArray[i][4] * 4095.0f; // Normalized G
+            data2_f = outputArray[i][5] * 4095.0f; // Normalized B
+            counter = 1;
+        } else if (counter == 1) {
+            // Second entry in the pair
+            data3_f = outputArray[i][3] * 4095.0f; // Normalized R
+            data4_f = outputArray[i][4] * 4095.0f; // Normalized G
+            data5_f = outputArray[i][5] * 4095.0f; // Normalized B
+            
+            // Convert to integer representation
+            int data0 = static_cast<int>(data0_f);
+            int data1 = static_cast<int>(data1_f);
+            int data2 = static_cast<int>(data2_f);
+            int data3 = static_cast<int>(data3_f);
+            int data4 = static_cast<int>(data4_f);
+            int data5 = static_cast<int>(data5_f);
+
+            // Combine the data
+            int combine0 = data0 | (data1 << 12);
+            int combine1 = data2 | (data3 << 12);
+            int combine2 = data4 | (data5 << 12);
+
+            // Pack the data into bytes
+            uint8_t buffer[9];
+            buffer[0] = combine0 & 0xff;
+            buffer[1] = (combine0 >> 8) & 0xff;
+            buffer[2] = (combine0 >> 16) & 0xff;
+            buffer[3] = combine1 & 0xff;
+            buffer[4] = (combine1 >> 8) & 0xff;
+            buffer[5] = (combine1 >> 16) & 0xff;
+            buffer[6] = combine2 & 0xff;
+            buffer[7] = (combine2 >> 8) & 0xff;
+            buffer[8] = (combine2 >> 16) & 0xff;
+
+            // Write to the binary file
+            outfile.write(reinterpret_cast<const char*>(buffer), sizeof(buffer));
+            
+            counter = 0;  // Reset counter after processing a pair
+        }
+    }
+
+    // Handle the case where there's an incomplete pair at the end
+    if (counter == 1) {
+        int data0 = static_cast<int>(data0_f);
+        int data1 = static_cast<int>(data1_f);
+        int data2 = static_cast<int>(data2_f);
+        int data3 = 4095; // Default for missing data
+        int data4 = 4095; // Default for missing data
+        int data5 = 4095; // Default for missing data
+
+        int combine0 = data0 | (data1 << 12);
+        int combine1 = data2 | (data3 << 12);
+        int combine2 = data4 | (data5 << 12);
+
+        uint8_t buffer[9];
+        buffer[0] = combine0 & 0xff;
+        buffer[1] = (combine0 >> 8) & 0xff;
+        buffer[2] = (combine0 >> 16) & 0xff;
+        buffer[3] = combine1 & 0xff;
+        buffer[4] = (combine1 >> 8) & 0xff;
+        buffer[5] = (combine1 >> 16) & 0xff;
+        buffer[6] = combine2 & 0xff;
+        buffer[7] = (combine2 >> 8) & 0xff;
+        buffer[8] = (combine2 >> 16) & 0xff;
+
+        // Write to the binary file
+        outfile.write(reinterpret_cast<const char*>(buffer), sizeof(buffer));
+    }
+
+    outfile.close();
+}
+
+
 void SaveLUTAsCSV(const RGBA32 rgbLUT[kLUTSize][kLUTSize][kLUTSize], const char* filename)
 {
-    std::ofstream file(filename);
+    std::ofstream file(filename, std::ios::trunc);
     if (!file.is_open())
     {
         printf("Failed to open file for writing.\n");
@@ -284,8 +461,7 @@ namespace
                     }
                 }
             }
-    */
-           
+    */        
 
             
             ApplyLUT(rgbaLUT, n, dataIn, dataOut);  // Apply the LUT to the input data.
@@ -299,17 +475,23 @@ namespace
             stbi_write_png(filename, w, h, 4, dataOut, 0);
 
             delete[] dataOut;
-            printf("Saving LUT as CSV: %s\n", csvFilename);
-            SaveLUTAsCSV(rgbaLUT, csvFilename);
+
+            printf("Saving LUT as BIN: %s\n", csvFilename);
+            SaveLUTAsBIN(rgbaLUT, "3dlut.bin");
+            //printf("Saving LUT as CSV: %s\n", csvFilename);
+            //SaveLUTAsCSV(rgbaLUT, csvFilename);
         }
         else
         {
             printf("c");
-            strcat(filename, "_lut.png");
-            printf("Saving %s\n", filename);
-            stbi_write_png(filename, kLUTSize * kLUTSize, kLUTSize, 4, rgbaLUT, 0);
-            printf("Saving LUT as CSV: %s\n", csvFilename);
-            SaveLUTAsCSV(rgbaLUT, csvFilename);
+            //strcat(filename, "_lut.png");
+            //printf("Saving %s\n", filename);
+            //stbi_write_png(filename, kLUTSize * kLUTSize, kLUTSize, 4, rgbaLUT, 0);
+
+            printf("Saving LUT as BIN: %s\n", csvFilename);
+            SaveLUTAsBIN(rgbaLUT, "3dlut.bin");
+            //printf("Saving LUT as CSV: %s\n", csvFilename);
+            //SaveLUTAsCSV(rgbaLUT, csvFilename);
         }
     }
 }

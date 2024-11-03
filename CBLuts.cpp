@@ -376,7 +376,7 @@ void CBLut::CreateIdentityLUT(RGBA32 rgbLUT[kLUTSize][kLUTSize][kLUTSize])
 void CBLut::ApplyLUT(RGBA32 rgbLUT[kLUTSize][kLUTSize][kLUTSize], int n, const RGBA32 dataIn[], RGBA32 dataOut[])
 {
 
-    printf("LUT values: \n");
+    //printf("LUT values: \n");
     for (int i = 0; i < kLUTSize; ++i)
     {
         for (int j = 0; j < kLUTSize; ++j)
@@ -384,8 +384,7 @@ void CBLut::ApplyLUT(RGBA32 rgbLUT[kLUTSize][kLUTSize][kLUTSize], int n, const R
             for (int k = 0; k < kLUTSize; ++k)
             {
                 RGBA32 color = rgbLUT[i][j][k];  // Access LUT values.
-                printf("LUT[%d][%d][%d] = R:%u G:%u B:%u\n", 
-                    i, j, k, color.c[0], color.c[1], color.c[2]);  // Print each RGBA component
+                //printf("LUT[%d][%d][%d] = R:%u G:%u B:%u\n",i, j, k, color.c[0], color.c[1], color.c[2]);  // Print each RGBA component
             }
         }
     }
